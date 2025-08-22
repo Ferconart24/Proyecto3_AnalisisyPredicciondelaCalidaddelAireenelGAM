@@ -260,17 +260,33 @@ elif menu == "Acerca de":
     st.title("Acerca del Proyecto")
 
     st.markdown("""
-    ## 🎯 Objetivo
-    Diseñar y desarrollar un proyecto de **Ciencia de Datos en Python** enfocado en una problemática relevante para Costa Rica, como lo es el (análisis sobre la Calidad del Aire en el GAM), integrando diversas fuentes de datos como bases de datos relacionales, APIs públicas costarricenses e internacionales, y archivos csv reales. El proyecto incluirán un análisis exploratorio de datos (EDA), visualización de datos y la aplicación de algoritmos de machine learning supervisado. Todo el desarrollo se estructurará utilizando principios de programación orientada a objetos para fomentar buenas prácticas de diseño y mantenimiento del código.
-    ## 👥 Integrantes
+    # ️ Análisis de Calidad del Aire - GAM Costa Rica
+
+    ##  Objetivo
+    Desarrollar un sistema de análisis de datos para monitorear y predecir la calidad del aire en el Gran Área Metropolitana de Costa Rica, utilizando técnicas de ciencia de datos y machine learning.
+
+    ##  Equipo de Desarrollo
     - **Fernando Contreras Artavia**
-    - **Victor Rojas Navarro**
+    - **Victor Rojas Navarro** 
     - **Johel Barquero Carvajal**
-    ## 🛠️ Herramientas
-    - **Python** (pandas, scikit-learn, matplotlib, seaborn, plotly, streamlit)
-    - **SQL Server** para almacenamiento de datos
-    - **Git/GitHub** para control de versiones
-    ## 🚀 Conclusión
-    El sistema integra **EDA, visualización avanzada, modelos ML y base de datos**
-    en una aplicación interactiva con **Streamlit**.
+
+    ##  Tecnologías Utilizadas
+    - **Python**: pandas, scikit-learn, matplotlib, seaborn, plotly, streamlit
+    - **Base de Datos**: SQL Server
+    - **Control de Versiones**: Git/GitHub
+    - **APIs**: Datos ambientales públicos de Costa Rica 
+
+    ##  Características del Proyecto
+    - **Análisis Exploratorio de Datos (EDA)** de calidad del aire
+    - **Visualizaciones interactivas** con gráficos y mapas
+    - **Modelos de Machine Learning** para predicciones
+    - **Integración de múltiples fuentes** de datos 
+    - **Aplicación web** desarrollada con Streamlit
+
+    ##  Impacto
+    Este proyecto busca proporcionar herramientas accesibles para el monitoreo ambiental, contribuyendo a la toma de decisiones informadas sobre la calidad del aire en Costa Rica.
+
+    ##  Conclusión
+    El sistema integra **análisis exploratorio de datos (EDA)**, **visualización avanzada**, **modelos de machine learning** y **gestión de base de datos** en una aplicación interactiva desarrollada con **Streamlit**. Esta solución completa permite el monitoreo y la predicción de la calidad del aire.
+
     """)
