@@ -67,63 +67,44 @@ if menu == "Carga de Datos":
 
 # ---------------- EDA ----------------
 elif menu == "EDA":
-    st.title("📊 Análisis Exploratorio de Datos")
+    st.title("Análisis Exploratorio de Datos")
 
-    if "contaminantes" in st.session_state and "flujo" in st.session_state:
-        # Obtener datasets desde session_state
-        df_cont = st.session_state["contaminantes"]
-        df_flujo = st.session_state["flujo"]
+    if "contaminantes" in st.session_state and "flujo" in st.session_state and "clima" in st.session_state:
         dfs = {
-            "Contaminantes": df_cont,
-            "FlujoVehicular": df_flujo
+            "Contaminantes": st.session_state["contaminantes"],
+            "FlujoVehicular": st.session_state["flujo"],
+            "Clima": st.session_state["clima"]
         }
 
-        from datos.ProcesadorEDA import ProcesadorEDA  # importa tu clase
+        # ✅ Crear tabla unificada
+        df_unificado = dfs["Contaminantes"].merge(
+            dfs["FlujoVehicular"], on="fecha", how="inner"
+        ).merge(
+            dfs["Clima"], on="fecha", how="inner"
+        )
+        dfs["TablaUnificada"] = df_unificado
 
+        from src.eda.ProcesadorEDA import ProcesadorEDA
         eda = ProcesadorEDA(dfs)
 
-        st.subheader("ℹ️ Información general de los datasets")
-        for nombre, df in dfs.items():
-            st.write(f"**{nombre}**")
-            st.text(f"Shape: {df.shape}")
-            st.dataframe(df.head(5))
-            st.text("Tipos de datos:")
-            st.text(df.dtypes)
-            st.text("Valores nulos:")
-            st.text(df.isnull().sum())
+        # Selección de dataset
+        dataset = st.selectbox("📂 Selecciona un dataset para analizar:", list(dfs.keys()))
+        df = dfs[dataset]
 
-        st.subheader("📊 Histogramas y Boxplots")
-        for nombre, df in dfs.items():
-            num_cols = df.select_dtypes(include="number").columns
-            if len(num_cols) > 0:
-                fig, ax = plt.subplots(figsize=(12,6))
-                df[num_cols].hist(ax=ax, bins=30)
-                st.pyplot(fig)
+        # Mostrar análisis
+        st.subheader(f"📊 Análisis del dataset: {dataset}")
+        eda.info_general_df(dataset, df)
+        eda.estadisticas_df(dataset, df)
+        eda.histograma_df(dataset, df)
+        eda.boxplot_df(dataset, df)
+        eda.correlacion_df(dataset, df)
 
-                fig, ax = plt.subplots(figsize=(12,6))
-                sns.boxplot(data=df[num_cols], ax=ax)
-                st.pyplot(fig)
-
-        st.subheader("📈 Correlaciones")
-        for nombre, df in dfs.items():
-            num_cols = df.select_dtypes(include="number").columns
-            if len(num_cols) > 0:
-                fig, ax = plt.subplots(figsize=(10,8))
-                sns.heatmap(df[num_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
-                st.pyplot(fig)
-
-        st.subheader("📅 Análisis temporal y anual")
-        eda.analisis_anual(fecha_col="fecha", contaminantes=["PM2.5","NO2"])
-        eda.analisis_temporal(fecha_col="fecha", contaminantes=["PM2.5","NO2"], freq="D")
-
-        st.subheader("🚦 Correlación flujo vehicular vs contaminantes")
-        eda.correlacion_trafico_contaminantes(flujo_col="flujo", contaminantes=["PM2.5","NO2"])
-
-        st.subheader("🌡️ Dispersión clima vs contaminantes")
-        eda.dispersion_meteo_contaminantes(meteo_cols=["temperatura","humedad"], contaminantes=["PM2.5","NO2"])
+        # 📈 Solo análisis temporal
+        eda.analisis_temporal(freq="D")
+        eda.analisis_temporal(freq="W")
 
     else:
-        st.warning("⚠️ Primero carga los datos en 'Carga de Datos'.")
+        st.warning("Primero carga los datos en 'Carga de Datos'.")
 
 # ---------------- VISUALIZACIONES ----------------
 elif menu == "Visualizaciones":
