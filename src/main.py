@@ -1,119 +1,46 @@
-from src.datos.GestorDatos import GestorDatos
-
-gd = GestorDatos()
-
-# Procesar los 3 archivos
-df_flujo = gd.procesar_archivo("flujo_vehicular.csv")
-df_contaminantes = gd.procesar_archivo("contaminantes.csv")
-df_clima = gd.procesar_archivo("clima.csv")
-
-
-'''
-import requests
-
-import pandas as pd
-
 import os
+from src.datos.GestorDatos import GestorDatos
+from src.basedatos.GestorBaseDatos import GestorBaseDatos
 
+def main():
+    # ------------------- PROCESAR ARCHIVOS CSV -------------------
+    gd = GestorDatos()
 
-class ClienteAPI:
+    df_flujo = gd.procesar_archivo("flujo_vehicular.csv")
+    df_contaminantes = gd.procesar_archivo("contaminantes.csv")
+    df_clima = gd.procesar_archivo("clima.csv")
 
-    def __init__(self, lat=9.9281, lon=-84.0907, api_key=None):
+    # ------------------- CONEXIÓN A SQL SERVER -------------------
+    gestor_db = GestorBaseDatos(
+        server=r"DESKTOP-GQ1EGAS\JOHEL",   # Servidor SQL
+        database="ContaminacionAire"       # Base de datos destino
+    )
+    gestor_db.conectar()
 
-        self.lat = lat
+    # ------------------- CREACIÓN DE TABLAS ORIGINALES -------------------
+    gestor_db.crear_tabla_desde_dataframe(df_flujo, "FlujoVehicular")
+    gestor_db.crear_tabla_desde_dataframe(df_contaminantes, "Contaminantes")
+    gestor_db.crear_tabla_desde_dataframe(df_clima, "Clima")
 
-        self.lon = lon
+    # ------------------- INSERCIÓN DE DATOS ORIGINALES -------------------
+    gestor_db.insertar_dataframe(df_flujo, "FlujoVehicular")
+    gestor_db.insertar_dataframe(df_contaminantes, "Contaminantes")
+    gestor_db.insertar_dataframe(df_clima, "Clima")
 
-        self.api_key = api_key
+    # ------------------- CREACIÓN DE TABLA UNIFICADA -------------------
+    df_unificado = df_flujo.merge(df_contaminantes, on=["fecha", "hora"]) \
+                           .merge(df_clima, on=["fecha", "hora"])
 
-    def descargar_air_quality(self, ruta_salida="data/processed/air_quality_clean.csv"):
+    gestor_db.crear_tabla_desde_dataframe(df_unificado, "TablaUnificada")
+    gestor_db.insertar_dataframe(df_unificado, "TablaUnificada")
 
-        """Descarga datos de calidad del aire y elimina nulos"""
+    # ------------------- GUARDAR TABLA UNIFICADA EN data/processed -------------------
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))   # sube un nivel desde src/
+    output_path = os.path.join(BASE_DIR, "data", "processed", "TablaUnificada.csv")
+    df_unificado.to_csv(output_path, index=False)
 
-        url = "https://air-quality-api.open-meteo.com/v1/air-quality"
-
-        params = {
-
-            "latitude": self.lat,
-
-            "longitude": self.lon,
-
-            "hourly": "pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,ozone",
-
-            "appid": self.api_key
-
-        }
-
-        response = requests.get(url, params=params)
-
-        if response.status_code != 200:
-            raise Exception(f"Error en API Air Quality: {response.status_code}")
-
-        data = response.json()
-
-        df = pd.DataFrame(data["hourly"])
-
-        df["time"] = pd.to_datetime(df["time"], errors="coerce")
-
-        # limpieza de nulos
-
-        df = df.dropna(how="any")
-
-        os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
-
-        df.to_csv(ruta_salida, index=False, encoding="utf-8")
-
-        print(f" Air Quality guardado en {ruta_salida}")
-
-    def descargar_clima_historico(self, start_date, end_date, ruta_salida="data/processed/clima_historico.csv"):
-
-        """Descarga datos climáticos históricos sin limpieza adicional"""
-
-        url = "https://archive-api.open-meteo.com/v1/archive"
-
-        params = {
-
-            "latitude": self.lat,
-
-            "longitude": self.lon,
-
-            "start_date": start_date,
-
-            "end_date": end_date,
-
-            "hourly": "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m"
-
-        }
-
-        response = requests.get(url, params=params)
-
-        if response.status_code != 200:
-            raise Exception(f"Error en API Archive: {response.status_code}")
-
-        data = response.json()
-
-        df = pd.DataFrame(data["hourly"])
-
-        df["time"] = pd.to_datetime(df["time"], errors="coerce")
-
-        os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
-
-        df.to_csv(ruta_salida, index=False, encoding="utf-8")
-
-        print(f" Clima histórico guardado en {ruta_salida}")
+    print(f"✅ Archivo 'TablaUnificada.csv' guardado en {output_path}")
+    print("✅ Inserción completada en la base de datos ContaminacionAire.")
 
 if __name__ == "__main__":
-    print("Proyecto iniciado")
-
-    # Inicializar cliente
-
-    cliente = ClienteAPI(api_key="d8d66d3c094782c020e3a2a9abdb1302")
-
-    # Descargar Air Quality (con limpieza de nulos)
-
-    cliente.descargar_air_quality()
-
-    # Descargar clima histórico (rango de fechas ajustable)
-
-    cliente.descargar_clima_historico(start_date="2024-08-15", end_date="2024-08-22")
-'''
+    main()
