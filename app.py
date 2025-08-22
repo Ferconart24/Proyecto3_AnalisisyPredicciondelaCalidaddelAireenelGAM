@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from streamlit_option_menu import option_menu
 
-from src.visualizacion.Visualizador import Visualizador
+#from src.visualizacion.Visualizador import Visualizador
 # from src.modelos.ModeloML import ModeloML
 # from src.eda.ProcesadorEDA import ProcesadorEDA
 
@@ -67,16 +67,63 @@ if menu == "Carga de Datos":
 
 # ---------------- EDA ----------------
 elif menu == "EDA":
-    st.title("Análisis Exploratorio de Datos")
+    st.title("📊 Análisis Exploratorio de Datos")
 
     if "contaminantes" in st.session_state and "flujo" in st.session_state:
+        # Obtener datasets desde session_state
         df_cont = st.session_state["contaminantes"]
         df_flujo = st.session_state["flujo"]
+        dfs = {
+            "Contaminantes": df_cont,
+            "FlujoVehicular": df_flujo
+        }
 
-        # eda = ProcesadorEDA(df_cont, df_flujo)
-        st.info("Aquí irán las funciones del EDA (distribuciones, correlaciones, temporales)")
+        from datos.ProcesadorEDA import ProcesadorEDA  # importa tu clase
+
+        eda = ProcesadorEDA(dfs)
+
+        st.subheader("ℹ️ Información general de los datasets")
+        for nombre, df in dfs.items():
+            st.write(f"**{nombre}**")
+            st.text(f"Shape: {df.shape}")
+            st.dataframe(df.head(5))
+            st.text("Tipos de datos:")
+            st.text(df.dtypes)
+            st.text("Valores nulos:")
+            st.text(df.isnull().sum())
+
+        st.subheader("📊 Histogramas y Boxplots")
+        for nombre, df in dfs.items():
+            num_cols = df.select_dtypes(include="number").columns
+            if len(num_cols) > 0:
+                fig, ax = plt.subplots(figsize=(12,6))
+                df[num_cols].hist(ax=ax, bins=30)
+                st.pyplot(fig)
+
+                fig, ax = plt.subplots(figsize=(12,6))
+                sns.boxplot(data=df[num_cols], ax=ax)
+                st.pyplot(fig)
+
+        st.subheader("📈 Correlaciones")
+        for nombre, df in dfs.items():
+            num_cols = df.select_dtypes(include="number").columns
+            if len(num_cols) > 0:
+                fig, ax = plt.subplots(figsize=(10,8))
+                sns.heatmap(df[num_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+                st.pyplot(fig)
+
+        st.subheader("📅 Análisis temporal y anual")
+        eda.analisis_anual(fecha_col="fecha", contaminantes=["PM2.5","NO2"])
+        eda.analisis_temporal(fecha_col="fecha", contaminantes=["PM2.5","NO2"], freq="D")
+
+        st.subheader("🚦 Correlación flujo vehicular vs contaminantes")
+        eda.correlacion_trafico_contaminantes(flujo_col="flujo", contaminantes=["PM2.5","NO2"])
+
+        st.subheader("🌡️ Dispersión clima vs contaminantes")
+        eda.dispersion_meteo_contaminantes(meteo_cols=["temperatura","humedad"], contaminantes=["PM2.5","NO2"])
+
     else:
-        st.warning("Primero carga los datos en 'Carga de Datos'.")
+        st.warning("⚠️ Primero carga los datos en 'Carga de Datos'.")
 
 # ---------------- VISUALIZACIONES ----------------
 elif menu == "Visualizaciones":
@@ -112,24 +159,87 @@ elif menu == "Modelos":
 
 # ---------------- BASE DE DATOS ----------------
 elif menu == "Base de Datos":
-    st.title("Conexión a la Base de Datos")
+    st.title("Código de Conexión a la Base de Datos")
 
-    try:
-        import pyodbc
+    codigo_sql = """import pyodbc
+import pandas as pd
 
-        conn = pyodbc.connect(
-            "DRIVER={ODBC Driver 17 for SQL Server};"
-            "SERVER=localhost;DATABASE=CalidadAire;UID=sa;PWD=tu_password"
+class GestorBaseDatos:
+    def __init__(self, server, database):
+        self.conn_str = (
+            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+            f"SERVER={server};DATABASE={database};Trusted_Connection=yes;"
         )
-        st.success("✅ Conexión exitosa a la base de datos SQL Server")
+        self.conn = None
 
-        query = "SELECT TOP 5 * FROM Contaminantes"
-        df_sql = pd.read_sql(query, conn)
-        st.dataframe(df_sql)
+    def conectar(self):
+        try:
+            self.conn = pyodbc.connect(self.conn_str)
+            print("✅ Conexión establecida con SQL Server (Windows Authentication)")
+        except Exception as e:
+            self.conn = None
+            print("❌ Error en la conexión:", e)
 
-        conn.close()
-    except Exception as e:
-        st.error(f"❌ Error en la conexión: {e}")
+    def crear_tabla_desde_dataframe(self, df, tabla):
+        if not self.conn:
+            print("❌ No hay conexión activa.")
+            return
+
+        cursor = self.conn.cursor()
+        tipo_sql = {
+            "int64": "INT",
+            "float64": "FLOAT",
+            "object": "NVARCHAR(255)",
+            "bool": "BIT",
+            "datetime64[ns]": "DATETIME"
+        }
+
+        columnas_sql = []
+        for col, dtype in df.dtypes.items():
+            if col.lower() == "fecha":
+                columnas_sql.append(f"[{col}] DATE")
+            elif col.lower() == "hora":
+                columnas_sql.append(f"[{col}] INT")
+            else:
+                columnas_sql.append(f"[{col}] {tipo_sql.get(str(dtype), 'NVARCHAR(255)')}")
+
+        columnas_sql_str = ", ".join(columnas_sql)
+        query = f\"\"\" 
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '{tabla}')
+        CREATE TABLE {tabla} (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            {columnas_sql_str}
+        )
+        \"\"\"
+        cursor.execute(query)
+        self.conn.commit()
+
+    def insertar_dataframe(self, df, tabla):
+        if not self.conn:
+            print("❌ No hay conexión activa.")
+            return
+        cursor = self.conn.cursor()
+        columnas = ",".join([f"[{c}]" for c in df.columns])
+        placeholders = ",".join("?" * len(df.columns))
+        query = f"INSERT INTO {tabla} ({columnas}) VALUES ({placeholders})"
+        data = [tuple(row) for row in df.to_numpy()]
+        cursor.executemany(query, data)
+        self.conn.commit()
+
+    def consultar(self, query):
+        if not self.conn:
+            print("❌ No hay conexión activa.")
+            return pd.DataFrame()
+        return pd.read_sql(query, self.conn)
+
+    def cerrar(self):
+        if self.conn:
+            self.conn.close()
+            self.conn = None
+"""
+
+    # Mostrar el código en Streamlit con formato Python
+    st.code(codigo_sql, language="python")
 
 # ---------------- ACERCA DE ----------------
 elif menu == "Acerca de":

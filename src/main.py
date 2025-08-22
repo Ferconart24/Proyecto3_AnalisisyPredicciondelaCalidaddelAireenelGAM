@@ -42,5 +42,18 @@ def main():
     print(f"✅ Archivo 'TablaUnificada.csv' guardado en {output_path}")
     print("✅ Inserción completada en la base de datos ContaminacionAire.")
 
+
 if __name__ == "__main__":
     main()
+
+    # main.py
+    # main.py
+    from src.modelos.ModeloML import entrenar_modelo
+
+
+    def main():
+        entrenar_modelo()
+
+
+    if __name__ == "__main__":
+        main()
