@@ -117,5 +117,3 @@ if __name__ == "__main__":
 
     cliente.descargar_clima_historico(start_date="2024-08-15", end_date="2024-08-22")
 '''
-
-
