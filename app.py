@@ -108,26 +108,59 @@ elif menu == "EDA":
 
 # ---------------- VISUALIZACIONES ----------------
 elif menu == "Visualizaciones":
-    st.title("Visualizaciones")
+    st.title("📊 Visualizaciones Interactivas - Calidad del Aire")
 
-    if "contaminantes" in st.session_state and "flujo" in st.session_state and "clima" in st.session_state:
-        df_cont = st.session_state["contaminantes"]
-        df_flujo = st.session_state["flujo"]
-        df_clima = st.session_state["clima"]
+    try:
+        # Cargar el dataset unificado
+        df = pd.read_csv("data/processed/TablaUnificada.csv", parse_dates=["fecha"])
 
-        vis = Visualizador(df_cont, df_flujo, df_clima)
+        st.success("✅ Datos cargados correctamente desde TablaUnificada.csv")
+        st.dataframe(df.head())
 
-        st.subheader("1️⃣ Consumo por hora y día")
-        vis.consumo_hora_dia()
+        import plotly.express as px
 
-        st.subheader("2️⃣ Demanda bajo distintas condiciones climáticas")
-        vis.demanda_condiciones()
+        # --- Gráfico 1: Correlación flujo vehicular vs PM2.5 ---
+        st.subheader(" Flujo vehicular vs PM2.5")
+        fig1 = px.scatter(df, x="flujo_vehicular", y="pm2_5", color="ubicacion",
+                          title="Correlación entre flujo vehicular y PM2.5",
+                          trendline="ols")
+        st.plotly_chart(fig1, use_container_width=True)
 
-        st.subheader("3️⃣ Correlaciones entre contaminantes y clima")
-        vis.correlaciones_clima()
-    else:
-        st.warning("⚠️ Primero carga los datos en 'Carga de Datos'.")
+        # --- Gráfico 2: Correlación flujo vehicular vs NO2 ---
+        st.subheader(" Flujo vehicular vs NO2")
+        fig2 = px.scatter(df, x="flujo_vehicular", y="no2", color="ubicacion",
+                          title="Correlación entre flujo vehicular y NO2",
+                          trendline="ols")
+        st.plotly_chart(fig2, use_container_width=True)
 
+        # --- Gráfico 3: Análisis temporal de PM2.5 y NO2 ---
+        st.subheader(" Evolución temporal de PM2.5 y NO2")
+        df_temp = df.groupby("fecha")[["pm2_5", "no2"]].mean().reset_index()
+        fig3 = px.line(df_temp, x="fecha", y=["pm2_5", "no2"],
+                       title="Tendencia diaria de PM2.5 y NO2")
+        st.plotly_chart(fig3, use_container_width=True)
+
+        # --- Gráfico 4: Mapa de calor por ubicación (PM2.5) ---
+        st.subheader(" Mapa de calor de PM2.5 por ubicación")
+        df_heat = df.groupby(["ubicacion", "fecha"])["pm2_5"].mean().reset_index()
+        fig4 = px.density_heatmap(df_heat, x="fecha", y="ubicacion", z="pm2_5",
+                                  color_continuous_scale="YlOrRd",
+                                  title="Mapa de calor de PM2.5")
+        st.plotly_chart(fig4, use_container_width=True)
+
+        # --- Gráfico 5: Dispersión clima vs contaminantes ---
+        st.subheader("️ Dispersión clima vs PM2.5")
+        fig5 = px.scatter(df, x="temperatura", y="pm2_5", color="humedad",
+                          title="PM2.5 en función de Temperatura y Humedad")
+        st.plotly_chart(fig5, use_container_width=True)
+
+        st.subheader("️ Dispersión clima vs NO2")
+        fig6 = px.scatter(df, x="temperatura", y="no2", color="humedad",
+                          title="NO2 en función de Temperatura y Humedad")
+        st.plotly_chart(fig6, use_container_width=True)
+
+    except FileNotFoundError:
+        st.error("❌ No se encontró el archivo TablaUnificada.csv en data/processed/")
 # ---------------- MODELOS ----------------
 elif menu == "Modelos":
     st.title("Modelo")
