@@ -66,9 +66,7 @@ class GestorDatos:
         Carga un CSV desde data/raw o data/processed.
         Si procesar=True, aplica limpieza.
         """
-        # Buscar en raw
         path_raw = os.path.join(self.ruta_raw, nombre_archivo)
-        # Buscar en processed
         path_proc = os.path.join(self.ruta_processed, nombre_archivo)
 
         path = path_raw if os.path.exists(path_raw) else path_proc
@@ -81,7 +79,20 @@ class GestorDatos:
         return df
 
     # ===============================
-    # 3. Unificación de datasets
+    # 3. Procesamiento completo de un archivo
+    # ===============================
+    def procesar_archivo(self, nombre_archivo: str) -> pd.DataFrame:
+        """
+        Carga, limpia y guarda un CSV desde data/raw hacia data/processed.
+        Retorna el DataFrame limpio.
+        """
+        df = self.cargar_csv(nombre_archivo)
+        df_limpio = self.limpiar_dataframe(df)
+        self.guardar_csv(df_limpio, nombre_archivo)
+        return df_limpio
+
+    # ===============================
+    # 4. Unificación de datasets
     # ===============================
     def unificar(self, incluir_api: bool = True) -> pd.DataFrame:
         """
