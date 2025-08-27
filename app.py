@@ -120,14 +120,17 @@ elif menu == "Visualizaciones":
         st.markdown("### Promedio de contaminantes por hora del día")
         vis.consumo_hora_dia()
 
-        #  Relación clima vs contaminantes
-        st.markdown("###  Relación entre clima y contaminantes")
+        # Relación clima vs contaminantes
+        st.markdown("### Relación entre clima y contaminantes")
         vis.demanda_condiciones()
 
         # Correlaciones entre todas las variables
-        st.markdown("###  Correlación entre clima, flujo vehicular y contaminantes")
+        st.markdown("### Correlación entre clima, flujo vehicular y contaminantes")
         vis.correlaciones_clima()
 
+        # NUEVO: Flujo vehicular promedio por ubicación
+        st.markdown("### Promedio de flujo vehicular por ubicación")
+        vis.flujo_por_ubicacion()
 
     else:
         st.warning("️ Primero carga los datos en 'Carga de Datos'.")

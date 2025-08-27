@@ -21,9 +21,9 @@ def probar_modelo(path, ejemplo, tipo):
             ejemplo = ejemplo[modelo.feature_names_in_]
 
         pred = modelo.predict(ejemplo)
-        print(f"✅ {tipo} → Predicción: {pred[0]}")
+        print(f" {tipo} → Predicción: {pred[0]}")
     else:
-        print(f"⚠️ No se encontró el modelo: {path.name}")
+        print(f"️ No se encontró el modelo: {path.name}")
 
 
 # ===========================

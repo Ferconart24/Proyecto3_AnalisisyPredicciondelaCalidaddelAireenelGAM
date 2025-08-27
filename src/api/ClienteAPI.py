@@ -8,7 +8,7 @@ from pathlib import Path
 class ClienteAPI:
     """
     Cliente para descargar datos de calidad del aire y clima histórico
-    desde Open-Meteo (no requiere API key).
+    desde Open-Meteo.
     """
 
     def __init__(self, base_dir: str = "data/processed", lat: float = 9.9281, lon: float = -84.0907):
@@ -65,5 +65,5 @@ class ClienteAPI:
         """
         path = self.base_dir / nombre
         df.to_csv(path, index=False, encoding="utf-8")
-        print(f"✅ Archivo guardado en {path}")
+        print(f" Archivo guardado en {path}")
         return path
