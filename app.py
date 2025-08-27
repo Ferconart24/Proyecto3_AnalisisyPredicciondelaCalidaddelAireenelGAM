@@ -1,17 +1,17 @@
 import streamlit as st
 import pandas as pd
 from streamlit_option_menu import option_menu
+from pathlib import Path
 
-#from src.visualizacion.Visualizador import Visualizador
-# from src.modelos.ModeloML import ModeloML
-# from src.eda.ProcesadorEDA import ProcesadorEDA
+# ---------------- Rutas ----------------
+project_root = Path(__file__).resolve().parent
+model_dir = project_root / "models"
 
 # ---------------- CONFIGURACIÓN ----------------
 st.set_page_config(page_title="Calidad del Aire en el GAM", layout="wide")
 
 # ---------------- MENÚ LATERAL ----------------
 with st.sidebar:
-
     menu = option_menu(
         "Menú del Proyecto",
         [
@@ -22,7 +22,7 @@ with st.sidebar:
             "Base de Datos",
             "Acerca de"
         ],
-        icons=["folder", "bar-chart", "globe", "cpu", "database", "info-circle"],
+        icons=["folder", "bar-chart", "bar-chart-line", "cpu", "database", "info-circle"],
         menu_icon="cast",
         default_index=0,
         styles={
@@ -49,7 +49,7 @@ if menu == "Carga de Datos":
         df_flujo = pd.read_csv("data/processed/flujo_vehicular.csv", parse_dates=["fecha"])
         df_clima = pd.read_csv("data/processed/clima.csv", parse_dates=["fecha"])
 
-        st.success("✅ Datasets cargados desde 'data/processed/'")
+        st.success(" Datasets cargados desde 'data/processed/'")
         st.subheader("Contaminantes")
         st.dataframe(df_cont.head())
         st.subheader("Flujo Vehicular")
@@ -63,20 +63,22 @@ if menu == "Carga de Datos":
         st.session_state["clima"] = df_clima
 
     except FileNotFoundError:
-        st.error("❌ No se encontraron los archivos procesados.")
+        st.error(" No se encontraron los archivos procesados.")
 
 # ---------------- EDA ----------------
 elif menu == "EDA":
-    st.title("Análisis Exploratorio de Datos")
+    st.title(" Análisis Exploratorio de Datos (EDA)")
 
     if "contaminantes" in st.session_state and "flujo" in st.session_state and "clima" in st.session_state:
+        from src.eda.ProcesadorEDA import ProcesadorEDA
+
         dfs = {
             "Contaminantes": st.session_state["contaminantes"],
             "FlujoVehicular": st.session_state["flujo"],
             "Clima": st.session_state["clima"]
         }
 
-        # ✅ Crear tabla unificada
+        # Crear tabla unificada
         df_unificado = dfs["Contaminantes"].merge(
             dfs["FlujoVehicular"], on="fecha", how="inner"
         ).merge(
@@ -84,92 +86,103 @@ elif menu == "EDA":
         )
         dfs["TablaUnificada"] = df_unificado
 
-        from src.eda.ProcesadorEDA import ProcesadorEDA
         eda = ProcesadorEDA(dfs)
 
-        # Selección de dataset
-        dataset = st.selectbox("📂 Selecciona un dataset para analizar:", list(dfs.keys()))
+        dataset = st.selectbox(" Selecciona un dataset para analizar:", list(dfs.keys()))
         df = dfs[dataset]
 
-        # Mostrar análisis
-        st.subheader(f"📊 Análisis del dataset: {dataset}")
+        # Análisis clásico de EDA
         eda.info_general_df(dataset, df)
         eda.estadisticas_df(dataset, df)
         eda.histograma_df(dataset, df)
         eda.boxplot_df(dataset, df)
         eda.correlacion_df(dataset, df)
 
-        # 📈 Solo análisis temporal
         eda.analisis_temporal(freq="D")
         eda.analisis_temporal(freq="W")
 
     else:
-        st.warning("Primero carga los datos en 'Carga de Datos'.")
+        st.warning("️ Primero carga los datos en 'Carga de Datos'.")
 
 # ---------------- VISUALIZACIONES ----------------
 elif menu == "Visualizaciones":
-    st.title("📊 Visualizaciones Interactivas - Calidad del Aire")
+    st.title(" Visualizaciones personalizadas")
 
-    try:
-        # Cargar el dataset unificado
-        df = pd.read_csv("data/processed/TablaUnificada.csv", parse_dates=["fecha"])
+    if "contaminantes" in st.session_state and "flujo" in st.session_state and "clima" in st.session_state:
+        df_cont = st.session_state["contaminantes"]
+        df_flujo = st.session_state["flujo"]
+        df_clima = st.session_state["clima"]
 
-        st.success("✅ Datos cargados correctamente desde TablaUnificada.csv")
-        st.dataframe(df.head())
+        from src.visualizacion.Visualizador import Visualizador
+        vis = Visualizador(df_cont, df_flujo, df_clima)
 
-        import plotly.express as px
+        # Consumo promedio por hora
+        st.markdown("### Promedio de contaminantes por hora del día")
+        vis.consumo_hora_dia()
 
-        # --- Gráfico 1: Correlación flujo vehicular vs PM2.5 ---
-        st.subheader(" Flujo vehicular vs PM2.5")
-        fig1 = px.scatter(df, x="flujo_vehicular", y="pm2_5", color="ubicacion",
-                          title="Correlación entre flujo vehicular y PM2.5",
-                          trendline="ols")
-        st.plotly_chart(fig1, use_container_width=True)
+        #  Relación clima vs contaminantes
+        st.markdown("###  Relación entre clima y contaminantes")
+        vis.demanda_condiciones()
 
-        # --- Gráfico 2: Correlación flujo vehicular vs NO2 ---
-        st.subheader(" Flujo vehicular vs NO2")
-        fig2 = px.scatter(df, x="flujo_vehicular", y="no2", color="ubicacion",
-                          title="Correlación entre flujo vehicular y NO2",
-                          trendline="ols")
-        st.plotly_chart(fig2, use_container_width=True)
+        # Correlaciones entre todas las variables
+        st.markdown("###  Correlación entre clima, flujo vehicular y contaminantes")
+        vis.correlaciones_clima()
 
-        # --- Gráfico 3: Análisis temporal de PM2.5 y NO2 ---
-        st.subheader(" Evolución temporal de PM2.5 y NO2")
-        df_temp = df.groupby("fecha")[["pm2_5", "no2"]].mean().reset_index()
-        fig3 = px.line(df_temp, x="fecha", y=["pm2_5", "no2"],
-                       title="Tendencia diaria de PM2.5 y NO2")
-        st.plotly_chart(fig3, use_container_width=True)
 
-        # --- Gráfico 4: Mapa de calor por ubicación (PM2.5) ---
-        st.subheader(" Mapa de calor de PM2.5 por ubicación")
-        df_heat = df.groupby(["ubicacion", "fecha"])["pm2_5"].mean().reset_index()
-        fig4 = px.density_heatmap(df_heat, x="fecha", y="ubicacion", z="pm2_5",
-                                  color_continuous_scale="YlOrRd",
-                                  title="Mapa de calor de PM2.5")
-        st.plotly_chart(fig4, use_container_width=True)
-
-        # --- Gráfico 5: Dispersión clima vs contaminantes ---
-        st.subheader("️ Dispersión clima vs PM2.5")
-        fig5 = px.scatter(df, x="temperatura", y="pm2_5", color="humedad",
-                          title="PM2.5 en función de Temperatura y Humedad")
-        st.plotly_chart(fig5, use_container_width=True)
-
-        st.subheader("️ Dispersión clima vs NO2")
-        fig6 = px.scatter(df, x="temperatura", y="no2", color="humedad",
-                          title="NO2 en función de Temperatura y Humedad")
-        st.plotly_chart(fig6, use_container_width=True)
-
-    except FileNotFoundError:
-        st.error("❌ No se encontró el archivo TablaUnificada.csv en data/processed/")
+    else:
+        st.warning("️ Primero carga los datos en 'Carga de Datos'.")
+        
 # ---------------- MODELOS ----------------
 elif menu == "Modelos":
-    st.title("Modelo")
+    st.title("Modelos de Machine Learning")
 
-    st.subheader("Regresión")
-    st.write("Predicción de concentración de PM2.5 (ejemplo con Regresión Lineal, KNN, Random Forest).")
+    import joblib
+    modelos = {
+        "Calidad del Aire": "modelo_calidad_aire.pkl",
+        "Regresión (PM2.5)": "modelo_regresion.pkl",
+        "Clasificación (ICA)": "modelo_clasificacion.pkl"
+    }
 
-    st.subheader("Clasificación")
-    st.write("Clasificación de calidad del aire según ICA (Buena, Moderada, Mala, Muy Mala).")
+    st.subheader(" Ingresa los datos para la predicción")
+
+    hora = st.slider("Hora del día", 0, 23, 12)
+    flujo = st.number_input("Flujo vehicular", min_value=0, value=1800)
+    temp = st.number_input("Temperatura (°C)", min_value=0.0, value=25.0)
+    humedad = st.slider("Humedad (%)", 0, 100, 70)
+    viento = st.number_input("Velocidad del viento (km/h)", min_value=0.0, value=7.0)
+    pm10 = st.number_input("PM10", min_value=0.0, value=50.0)
+    co = st.number_input("CO", min_value=0.0, value=1.0)
+    no2 = st.number_input("NO2", min_value=0.0, value=80.0)
+    o3 = st.number_input("O3", min_value=0.0, value=100.0)
+
+    ejemplo = pd.DataFrame([{
+        "hora": hora,
+        "flujo_vehicular": flujo,
+        "temperatura": temp,
+        "humedad": humedad,
+        "viento": viento,
+        "pm10": pm10,
+        "co": co,
+        "no2": no2,
+        "o3": o3
+    }])
+
+    if st.button(" Predecir"):
+        for nombre, archivo in modelos.items():
+            path = model_dir / archivo
+            if path.exists():
+                modelo = joblib.load(path)
+
+                if hasattr(modelo, "feature_names_in_"):
+                    for col in modelo.feature_names_in_:
+                        if col not in ejemplo.columns:
+                            ejemplo[col] = 0.0
+                    ejemplo = ejemplo[modelo.feature_names_in_]
+
+                pred = modelo.predict(ejemplo)[0]
+                st.success(f" {nombre} → **{pred}**")
+            else:
+                st.error(f" Modelo no encontrado: {archivo}")
 
 # ---------------- BASE DE DATOS ----------------
 elif menu == "Base de Datos":
@@ -260,33 +273,75 @@ elif menu == "Acerca de":
     st.title("Acerca del Proyecto")
 
     st.markdown("""
-    # ️ Análisis de Calidad del Aire - GAM Costa Rica
+# Análisis y Predicción de la Calidad del Aire - GAM Costa Rica
 
-    ##  Objetivo
-    Desarrollar un sistema de análisis de datos para monitorear y predecir la calidad del aire en el Gran Área Metropolitana de Costa Rica, utilizando técnicas de ciencia de datos y machine learning.
+## Objetivo
+Desarrollar un sistema de análisis de datos para monitorear y predecir la calidad del aire en el Gran Área Metropolitana de Costa Rica, 
+utilizando técnicas de ciencia de datos, machine learning y visualización interactiva.
 
-    ##  Equipo de Desarrollo
-    - **Fernando Contreras Artavia**
-    - **Victor Rojas Navarro** 
-    - **Johel Barquero Carvajal**
+## Equipo de Desarrollo
+- **Fernando Contreras Artavia**
+- **Victor Rojas Navarro** 
+- **Johel Barquero Carvajal**
 
-    ##  Tecnologías Utilizadas
-    - **Python**: pandas, scikit-learn, matplotlib, seaborn, plotly, streamlit
-    - **Base de Datos**: SQL Server
-    - **Control de Versiones**: Git/GitHub
-    - **APIs**: Datos ambientales públicos de Costa Rica 
+---
 
-    ##  Características del Proyecto
-    - **Análisis Exploratorio de Datos (EDA)** de calidad del aire
-    - **Visualizaciones interactivas** con gráficos y mapas
-    - **Modelos de Machine Learning** para predicciones
-    - **Integración de múltiples fuentes** de datos 
-    - **Aplicación web** desarrollada con Streamlit
+## ️Estructura del Proyecto
+- `src/eda/`: clase **ProcesadorEDA** (EDA básico: estadísticas, correlaciones, histogramas, boxplots, etc).  
+- `src/visualizacion/`: clase **Visualizador** (comparaciones por zona, relación clima-contaminantes, consumo por hora, correlaciones globales).  
+- `src/modelos/`: modelos entrenados y script de prueba.  
+- `data/processed/`: datasets procesados.  
+- `models/`: modelos entrenados en formato `.pkl`.  
+- `app.py`: aplicación central con **Streamlit**.  
+- **Notebooks:**  
+  1. `Entrenamiento_Modelos.ipynb`: Regresión y Clasificación (muestra los resultados de forma interactiva).  
+  2. `exploracion_inicial.ipynb`  
+  3. `Guia_ModeloML.ipynb`: Información rápida de los datasets.  
+  4. `Predicciones_CalidadAire.ipynb`: Realizar predicciones desde un notebook.  
+  5. `SQL Server.ipynb`: Demostración de cómo se crearon las tablas en SQL Server.
 
-    ##  Impacto
-    Este proyecto busca proporcionar herramientas accesibles para el monitoreo ambiental, contribuyendo a la toma de decisiones informadas sobre la calidad del aire en Costa Rica.
+---
+##  Variables de entrada para las predicciones
 
-    ##  Conclusión
-    El sistema integra **análisis exploratorio de datos (EDA)**, **visualización avanzada**, **modelos de machine learning** y **gestión de base de datos** en una aplicación interactiva desarrollada con **Streamlit**. Esta solución completa permite el monitoreo y la predicción de la calidad del aire.
+- `hora`
+- `flujo_vehicular`
+- `temperatura`
+- `humedad`
+- `viento`️
+- `pm10: Material particulado fino `  ️
+- `co: Monóxido de carbono` ️
+- `no2: Dióxido de nitrógeno`
+- `o3: Ozono a nivel del suelo` ️  
 
+    ---
+
+## Modelos de Machine Learning
+
+- **Calidad del Aire** → predicción numérica de contaminación (ejemplo: 40.8).  
+- **Regresión (PM2.5)** → concentración estimada de partículas PM2.5.  
+- **Clasificación (ICA)** → categoría de calidad del aire:
+  - `Buena`: Aire limpio.
+  - `Moderada`: Aceptable.
+  - `Mala`: Riesgo.
+  - `Muy Mala`: Riesgo para toda la población.   
+
+    ---
+
+    ## Base de Datos
+    - Clase `GestorBaseDatos` para conexión a **SQL Server** vía ODBC.  
+    - Funcionalidades:
+        - Conexión con autenticación Windows.  
+        - Creación automática de tablas desde DataFrames.  
+        - Inserción masiva de registros.  
+        - Consultas SQL directas.  
+
+    ---
+
+    ## Conclusión
+    Este proyecto integra en una **aplicación web interactiva**:
+    - **EDA** (estadísticas y exploración de datos).    
+    - **Modelos de Machine Learning** para predicciones.  
+    - **Gestión de base de datos** en SQL Server.  
+
+    Todo esto permite el **monitoreo y la predicción de la calidad del aire en Costa Rica.**  
     """)

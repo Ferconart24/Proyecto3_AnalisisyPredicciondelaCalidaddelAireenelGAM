@@ -1,7 +1,7 @@
 # src/datos/GestorDatos.py
 import pandas as pd
 import os
-import unidecode
+from src.helpers.Utilidades import Utilidades
 
 
 class GestorDatos:
@@ -15,24 +15,19 @@ class GestorDatos:
     def __init__(self, ruta_raw: str = "data/raw", ruta_processed: str = "data/processed"):
         self.ruta_raw = ruta_raw
         self.ruta_processed = ruta_processed
-        os.makedirs(self.ruta_raw, exist_ok=True)
-        os.makedirs(self.ruta_processed, exist_ok=True)
+        Utilidades.asegurar_directorio(self.ruta_raw)
+        Utilidades.asegurar_directorio(self.ruta_processed)
 
     # ===============================
-    # 1. Funciones auxiliares
+    # 1. Limpieza general
     # ===============================
-    def normalizar_texto(self, texto: str) -> str:
-        """Quita tildes, pasa a minúsculas y elimina espacios extras"""
-        return unidecode.unidecode(str(texto)).strip().lower()
-
     def limpiar_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Normaliza columnas y aplica reglas básicas de limpieza"""
-        df = df.copy()
-        df.columns = [self.normalizar_texto(col) for col in df.columns]
+        df = Utilidades.normalizar_columnas(df)
 
         # Normalizar ubicación si existe
         if "ubicacion" in df.columns:
-            df["ubicacion"] = df["ubicacion"].astype(str).apply(lambda x: self.normalizar_texto(x))
+            df["ubicacion"] = df["ubicacion"].astype(str).apply(Utilidades.normalizar_texto)
 
         # Convertir fecha
         if "fecha" in df.columns:
@@ -108,8 +103,10 @@ class GestorDatos:
             return pd.DataFrame()
 
         # Merge principal por fecha y hora
-        df_unificado = df_flujo.merge(df_cont, on=["fecha", "hora"], how="inner") \
-                               .merge(df_clima, on=["fecha", "hora"], how="inner")
+        df_unificado = (
+            df_flujo.merge(df_cont, on=["fecha", "hora"], how="inner")
+                    .merge(df_clima, on=["fecha", "hora"], how="inner")
+        )
 
         # Si existen, incluir datasets de API
         if incluir_api:
