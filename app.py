@@ -131,7 +131,7 @@ elif menu == "Visualizaciones":
 
     else:
         st.warning("️ Primero carga los datos en 'Carga de Datos'.")
-
+        
 # ---------------- MODELOS ----------------
 elif menu == "Modelos":
     st.title("Modelos de Machine Learning")
